@@ -1,0 +1,122 @@
+# Код утиліти
+import os
+import sys
+
+def analyze_file(filepath):
+    stats = {
+        'total_lines': 0,
+        'empty_lines': 0,
+        'physical_lines': 0,
+        'logical_lines': 0,
+        'comment_lines': 0
+    }
+    
+    # Визначаємо мову для правильного парсингу коментарів
+    ext = os.path.splitext(filepath)[1].lower()
+    single_line_comment_symbols = ('//', '#') if ext != '.py' else ('#',)
+    
+    try:
+        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+    except Exception as e:
+        return stats
+
+    stats['total_lines'] = len(lines)
+    in_multiline_comment = False
+
+    for line in lines:
+        stripped = line.strip()
+        
+        # 1. Порожні рядки
+        if not stripped:
+            stats['empty_lines'] += 1
+            continue
+            
+        # 2. Фізичні рядки (всі не порожні рядки)
+        stats['physical_lines'] += 1
+        
+        is_pure_comment = False
+        
+        # Обробка багаторядкових коментарів (для C-подібних мов та CSS)
+        if stripped.startswith('/*'):
+            in_multiline_comment = True
+            
+        if in_multiline_comment:
+            stats['comment_lines'] += 1
+            is_pure_comment = True
+            if '*/' in stripped:
+                in_multiline_comment = False
+            continue
+            
+        # Обробка однорядкових коментарів
+        if stripped.startswith(single_line_comment_symbols):
+            stats['comment_lines'] += 1
+            is_pure_comment = True
+        elif any(sym in stripped for sym in single_line_comment_symbols):
+            # Рядок містить і код, і коментар (inline comment)
+            stats['comment_lines'] += 1
+            
+        # 3. Логічні рядки (SLOC - Source Lines of Code)
+        # Для простоти: це фізичні рядки, які містять виконуваний код (не є чистим коментарем)
+        if not is_pure_comment:
+            stats['logical_lines'] += 1
+
+    return stats
+
+def analyze_project(directory):
+    # Розширення файлів, які ми будемо аналізувати
+    extensions = ('.py', '.js', '.ts', '.java', '.cpp', '.c', '.h', '.cs', '.go')
+    
+    total_stats = {
+        'total_lines': 0,
+        'empty_lines': 0,
+        'physical_lines': 0,
+        'logical_lines': 0,
+        'comment_lines': 0
+    }
+    
+    file_count = 0
+    
+    print(f"Аналізуємо директорію: {directory}...")
+    
+    for root, _, files in os.walk(directory):
+        for file in files:
+            if file.endswith(extensions):
+                filepath = os.path.join(root, file)
+                file_count += 1
+                file_stats = analyze_file(filepath)
+                
+                for key in total_stats:
+                    total_stats[key] += file_stats[key]
+                    
+    # 4. Розрахунок рівня коментування
+    comment_ratio = 0
+    if total_stats['physical_lines'] > 0:
+        comment_ratio = (total_stats['comment_lines'] / total_stats['physical_lines']) * 100
+
+    print("\n" + "="*40)
+    print("РЕЗУЛЬТАТИ АНАЛІЗУ (МЕТРИКИ LOC)")
+    print("="*40)
+    print(f"Проаналізовано файлів:     {file_count}")
+    print(f"Загальна к-ть рядків:      {total_stats['total_lines']}")
+    print(f"Порожніх рядків:           {total_stats['empty_lines']}")
+    print(f"Фізичних рядків коду:      {total_stats['physical_lines']}")
+    print(f"Логічних рядків (SLOC):    {total_stats['logical_lines']}")
+    print(f"Рядків з коментарями:      {total_stats['comment_lines']}")
+    print(f"Рівень коментування (F):   {comment_ratio:.2f}%")
+    print("="*40)
+    
+    if total_stats['logical_lines'] < 30000:
+        print("\nУВАГА: Ця бібліотека має менше 30 KLOCs (30 000 логічних рядків).")
+        print("Для виконання вимог завдання оберіть більший проєкт.")
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        target_dir = sys.argv[1]
+    else:
+        target_dir = input("Введіть шлях до папки з бібліотекою для аналізу: ")
+        
+    if os.path.isdir(target_dir):
+        analyze_project(target_dir)
+    else:
+        print("Помилка: Вказаного шляху не існує або це не папка.")
