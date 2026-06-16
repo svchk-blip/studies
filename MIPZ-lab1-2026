@@ -1,26 +1,31 @@
 import sys
+import os
 
 def solve():
-    # Read all inputs from standard input
-    input_data = sys.stdin.read().split()
+    file_path = 'input.txt'
+    
+    # 1. Перевіряємо, чи існує файл з даними
+    if not os.path.exists(file_path):
+        print(f"Помилка: Файл '{file_path}' не знайдено!")
+        print("Створи файл input.txt у тій самій папці і встав туди тестову матрицю 19x19.")
+        return
+
+    # 2. Зчитуємо дані
+    with open(file_path, 'r') as f:
+        input_data = f.read().split()
+        
     if not input_data:
+        print("Файл порожній!")
         return
     
     t = int(input_data[0])
     idx = 1
     
-    # Directions: (row_delta, col_delta)
-    # Checking Right, Down, Down-Right, Up-Right ensures we always 
-    # start from the leftmost (or uppermost) stone.
-    directions = [
-        (0, 1),   # Right
-        (1, 0),   # Down
-        (1, 1),   # Down-Right
-        (-1, 1)   # Up-Right
-    ]
+    # Вправо, Вниз, Вниз-Вправо, Вгору-Вправо
+    directions = [(0, 1), (1, 0), (1, 1), (-1, 1)]
     
     for _ in range(t):
-        # Build the 19x19 board for the current testcase
+        # Будуємо матрицю
         board = []
         for r in range(19):
             row = []
@@ -33,7 +38,7 @@ def solve():
         win_r = -1
         win_c = -1
         
-        # Scan the board
+        # Шукаємо переможні 5 каменів
         for r in range(19):
             for c in range(19):
                 if board[r][c] == 0:
@@ -42,12 +47,10 @@ def solve():
                 color = board[r][c]
                 
                 for dr, dc in directions:
-                    # Check if the 5th stone is within the board boundaries
                     end_r = r + 4 * dr
                     end_c = c + 4 * dc
                     
                     if 0 <= end_r < 19 and 0 <= end_c < 19:
-                        # Verify all 5 stones in this direction match the color
                         match = True
                         for step in range(1, 5):
                             if board[r + step * dr][c + step * dc] != color:
@@ -55,19 +58,17 @@ def solve():
                                 break
                         
                         if match:
-                            # Verify the "exactly 5" rule (no overlines)
-                            prev_r = r - dr
-                            prev_c = c - dc
-                            next_r = r + 5 * dr
-                            next_c = c + 5 * dc
+                            # Перевіряємо, чи немає 6-го каменя (щоб було рівно 5)
+                            prev_r, prev_c = r - dr, c - dc
+                            next_r, next_c = r + 5 * dr, c + 5 * dc
                             
                             prev_match = (0 <= prev_r < 19 and 0 <= prev_c < 19 and board[prev_r][prev_c] == color)
                             next_match = (0 <= next_r < 19 and 0 <= next_c < 19 and board[next_r][next_c] == color)
                                 
                             if not prev_match and not next_match:
                                 winner = color
-                                win_r = r + 1 # Convert to 1-based index
-                                win_c = c + 1 # Convert to 1-based index
+                                win_r = r + 1 # в задачі координати з 1
+                                win_c = c + 1 
                                 break
                 
                 if winner != 0:
@@ -75,7 +76,7 @@ def solve():
             if winner != 0:
                 break
         
-        # Output the results for the current test case
+        # Вивід результату
         if winner != 0:
             print(winner)
             print(f"{win_r} {win_c}")
